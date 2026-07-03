@@ -1,1 +1,780 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Neumorphic Joystick</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+    --bg-void:#12151b;
+    --bg-void-2:#0c0e12;
+    --panel:#1c212a;
+    --panel-light:#2a303c;
+    --panel-dark:#0a0c10;
+    --text:#eae6dc;
+    --text-muted:#7b8290;
+    --accent:#ff4d4d;
+    --accent-rgb:255,77,77;
+  }
 
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+
+  html,body{ margin:0; padding:0; height:100%; }
+
+  body{
+    min-height:100vh; display:flex; flex-direction:column;
+    background-color:var(--bg-void);
+    background-image:
+      radial-gradient(1200px 700px at 18% -10%, rgba(var(--accent-rgb),0.09), transparent 60%),
+      radial-gradient(900px 600px at 100% 110%, rgba(var(--accent-rgb),0.06), transparent 60%),
+      radial-gradient(rgba(255,255,255,0.028) 1px, transparent 1.4px);
+    background-size:auto, auto, 26px 26px;
+    color:var(--text); font-family:'JetBrains Mono', monospace;
+    overflow-x:hidden; transition:background .5s ease;
+  }
+
+  /* ---------- glass base ---------- */
+  .glass{
+    background:linear-gradient(135deg, rgba(255,255,255,0.09), rgba(255,255,255,0.025));
+    backdrop-filter:blur(22px) saturate(180%);
+    -webkit-backdrop-filter:blur(22px) saturate(180%);
+    border:1px solid rgba(255,255,255,0.14);
+    box-shadow:0 16px 44px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.14), inset 0 -1px 0 rgba(0,0,0,0.25);
+  }
+
+  /* ---------- header ---------- */
+  header{
+    display:flex; justify-content:space-between; align-items:flex-start;
+    padding:clamp(20px,4vw,42px) clamp(20px,5vw,56px) 0;
+    position:relative; z-index:5;
+  }
+  .eyebrow{ font-size:11px; letter-spacing:.22em; text-transform:uppercase; color:var(--text-muted); font-weight:500; }
+  .eyebrow span{ color:var(--accent); transition:color .4s ease; }
+
+  .scheme-control{ position:relative; }
+
+  .scheme-btn{
+    width:46px; height:46px; border-radius:50%; border:none; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    background:var(--panel);
+    box-shadow:6px 6px 12px var(--panel-dark), -6px -6px 12px var(--panel-light);
+    transition:box-shadow .2s ease;
+  }
+  .scheme-btn:active{ box-shadow:inset 4px 4px 8px var(--panel-dark), inset -4px -4px 8px var(--panel-light); }
+  .scheme-btn .dot{
+    width:16px; height:16px; border-radius:50%; background:var(--accent);
+    box-shadow:0 0 10px 2px rgba(var(--accent-rgb),0.65), inset 0 2px 2px rgba(255,255,255,0.4);
+    transition:background .4s ease, box-shadow .4s ease;
+  }
+
+  .scheme-panel, .picker-panel{
+    position:absolute; top:58px; right:0; z-index:30; width:252px; padding:16px;
+    border-radius:22px; opacity:0; transform:translateY(-8px) scale(.96);
+    pointer-events:none; transition:opacity .18s ease, transform .18s ease;
+  }
+  .scheme-panel::before, .picker-panel::before{
+    content:''; position:absolute; top:0; left:10%; right:10%; height:1px;
+    background:linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent);
+  }
+  .scheme-panel.open, .picker-panel.open{ opacity:1; transform:translateY(0) scale(1); pointer-events:auto; }
+
+  /* ---------- tabs ---------- */
+  .tabs{ display:flex; gap:5px; background:rgba(255,255,255,0.05); padding:4px; border-radius:14px; margin-bottom:14px; }
+  .tab-btn{
+    flex:1; border:none; background:transparent; color:var(--text-muted);
+    font-family:inherit; font-size:11px; letter-spacing:.04em; padding:8px 0;
+    border-radius:10px; cursor:pointer; transition:all .2s ease;
+  }
+  .tab-btn.active{ background:rgba(255,255,255,0.14); color:var(--text); box-shadow:0 2px 8px rgba(0,0,0,0.3); }
+  .tab-panel[hidden]{ display:none; }
+
+  .panel-title{ margin:0 0 12px; font-family:'Cormorant Garamond', serif; font-style:italic; font-weight:600; font-size:16px; }
+
+  /* ---------- swatches ---------- */
+  .swatch-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:11px; }
+  .swatch{
+    width:40px; height:40px; border-radius:50%; cursor:pointer; position:relative;
+    border:1px solid rgba(255,255,255,0.25);
+    box-shadow:0 4px 10px rgba(0,0,0,0.45), inset 0 2px 3px rgba(255,255,255,0.35), inset 0 -3px 5px rgba(0,0,0,0.35);
+    transition:transform .15s ease, box-shadow .15s ease;
+  }
+  .swatch::after{
+    content:''; position:absolute; top:12%; left:16%; width:38%; height:30%; border-radius:50%;
+    background:rgba(255,255,255,0.55); filter:blur(2px);
+  }
+  .swatch:hover{ transform:translateY(-2px) scale(1.06); }
+  .swatch.active{ box-shadow:0 4px 10px rgba(0,0,0,0.45), inset 0 2px 3px rgba(255,255,255,0.35), inset 0 -3px 5px rgba(0,0,0,0.35), 0 0 0 2px rgba(255,255,255,0.85); }
+  .swatch.custom-add{
+    background:rgba(255,255,255,0.04); border:1.5px dashed rgba(255,255,255,0.32);
+    display:flex; align-items:center; justify-content:center; color:var(--text-muted); font-size:17px; box-shadow:none;
+  }
+  .swatch.custom-add::after{ display:none; }
+  .swatch-label{ font-size:10px; color:var(--text-muted); margin:12px 0 8px; letter-spacing:.05em; }
+
+  /* ---------- gradient tab ---------- */
+  .gradient-preview{ height:46px; border-radius:14px; margin-bottom:12px; border:1px solid rgba(255,255,255,0.2); box-shadow:inset 0 2px 4px rgba(0,0,0,0.35); }
+  .stops-row{ display:flex; flex-wrap:wrap; gap:10px; margin-bottom:12px; }
+  .stop-chip{
+    width:34px; height:34px; border-radius:11px; position:relative; cursor:pointer;
+    border:1px solid rgba(255,255,255,0.25);
+    box-shadow:0 3px 8px rgba(0,0,0,0.4), inset 0 2px 3px rgba(255,255,255,0.3), inset 0 -2px 4px rgba(0,0,0,0.3);
+  }
+  .stop-chip .remove{
+    position:absolute; top:-6px; right:-6px; width:16px; height:16px; border-radius:50%;
+    background:#1c212a; border:1px solid rgba(255,255,255,0.3); color:var(--text-muted);
+    font-size:9px; display:flex; align-items:center; justify-content:center; cursor:pointer; line-height:1;
+  }
+  .stop-chip.add{
+    background:rgba(255,255,255,0.04); border:1.5px dashed rgba(255,255,255,0.32);
+    display:flex; align-items:center; justify-content:center; color:var(--text-muted); font-size:16px; box-shadow:none;
+  }
+  .angle-row{ display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+  .angle-label{ font-size:10px; color:var(--text-muted); white-space:nowrap; }
+  #angleVal{ font-size:10px; color:var(--text); min-width:32px; text-align:right; }
+  .glass-range{
+    -webkit-appearance:none; appearance:none; flex:1; height:6px; border-radius:6px;
+    background:rgba(255,255,255,0.14); outline:none; cursor:pointer;
+  }
+  .glass-range::-webkit-slider-thumb{
+    -webkit-appearance:none; width:16px; height:16px; border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, #fff, #cfd3da); box-shadow:0 2px 6px rgba(0,0,0,0.5); cursor:pointer;
+  }
+  .glass-range::-moz-range-thumb{
+    width:16px; height:16px; border-radius:50%; border:none;
+    background:radial-gradient(circle at 35% 30%, #fff, #cfd3da); box-shadow:0 2px 6px rgba(0,0,0,0.5); cursor:pointer;
+  }
+
+  /* ---------- custom picker ---------- */
+  .picker-header{ display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+  .back-btn{
+    background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.16); color:var(--text);
+    width:28px; height:28px; border-radius:9px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+  }
+  .picker-header span{ font-family:'Cormorant Garamond', serif; font-style:italic; font-size:16px; }
+
+  .sv-square{
+    position:relative; width:100%; height:150px; border-radius:16px; margin-bottom:14px;
+    cursor:crosshair; border:1px solid rgba(255,255,255,0.18); overflow:hidden; touch-action:none;
+  }
+  .sv-thumb{
+    position:absolute; width:16px; height:16px; border-radius:50%; border:2px solid #fff;
+    box-shadow:0 0 0 1px rgba(0,0,0,0.45), 0 2px 6px rgba(0,0,0,0.5); transform:translate(-50%,-50%); pointer-events:none;
+  }
+  .hue-slider{
+    position:relative; height:16px; border-radius:8px; margin-bottom:14px; cursor:pointer; touch-action:none;
+    border:1px solid rgba(255,255,255,0.18);
+    background:linear-gradient(to right,#ff0000,#ffff00,#00ff00,#00ffff,#0000ff,#ff00ff,#ff0000);
+  }
+  .hue-thumb{
+    position:absolute; top:50%; width:18px; height:18px; border-radius:50%; background:#fff;
+    border:2px solid rgba(0,0,0,0.35); box-shadow:0 2px 6px rgba(0,0,0,0.5); transform:translate(-50%,-50%); pointer-events:none;
+  }
+  .picker-row{ display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+  .eyedrop-btn{
+    width:34px; height:34px; border-radius:10px; background:rgba(255,255,255,0.06);
+    border:1px solid rgba(255,255,255,0.16); color:var(--text); display:flex; align-items:center; justify-content:center;
+    cursor:pointer; flex-shrink:0;
+  }
+  .eyedrop-btn:disabled{ opacity:.3; cursor:not-allowed; }
+  .swatch-preview{
+    width:34px; height:34px; border-radius:10px; border:1px solid rgba(255,255,255,0.2); flex-shrink:0;
+    box-shadow:inset 0 2px 3px rgba(255,255,255,0.25), inset 0 -2px 4px rgba(0,0,0,0.3);
+  }
+  .glass-input{
+    background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.16); color:var(--text);
+    border-radius:10px; padding:7px 6px; font-family:inherit; font-size:12px; text-align:center; outline:none; width:100%;
+  }
+  .glass-input:focus{ border-color:var(--accent); }
+  .hex-input{ flex:1; text-transform:uppercase; }
+  .rgb-row{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:14px; }
+  .rgb-field{ display:flex; flex-direction:column; align-items:center; gap:4px; }
+  .rgb-field label{ font-size:9px; color:var(--text-muted); letter-spacing:.08em; }
+  .apply-btn{
+    width:100%; padding:11px; border-radius:12px; border:none; cursor:pointer;
+    font-family:inherit; font-size:12px; letter-spacing:.06em; color:#12151b; font-weight:600;
+    background:linear-gradient(135deg,#fff,#cfd3da); box-shadow:0 4px 14px rgba(0,0,0,0.4);
+  }
+
+  /* ---------- hero ---------- */
+  .hero{ text-align:center; padding:clamp(18px,3vw,30px) 20px 0; position:relative; z-index:1; }
+  .hero h1{ margin:0; font-family:'Cormorant Garamond', serif; font-weight:600; font-size:clamp(34px,6vw,56px); color:var(--text); }
+  .hero p{ margin:10px auto 0; max-width:420px; font-size:12.5px; color:var(--text-muted); line-height:1.6; }
+  .hero p .accent-text{ color:var(--accent); transition:color .4s ease; }
+
+  /* ---------- stage ---------- */
+  .stage{ flex:1; display:flex; align-items:center; justify-content:center; padding:clamp(30px,5vw,60px) 20px; }
+
+  .joystick-panel{
+    position:relative; width:min(78vw,340px); height:min(78vw,340px); border-radius:44px;
+    background:var(--panel); box-shadow:26px 26px 60px var(--panel-dark), -26px -26px 60px var(--panel-light);
+  }
+
+  .vents{ position:absolute; inset:0; }
+  .vent{
+    position:absolute; width:9px; height:9px; border-radius:50%; background:var(--bg-void-2);
+    box-shadow:inset 1.5px 1.5px 2px rgba(0,0,0,0.7), inset -1px -1px 1.5px rgba(255,255,255,0.05);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .vent-core{
+    width:56%; height:56%; border-radius:50%; background:rgb(180,60,60); opacity:.12;
+    transition:opacity .25s ease, box-shadow .25s ease, background .35s ease;
+  }
+
+  .socket{
+    position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:62%; height:62%; border-radius:50%;
+    background:var(--panel); box-shadow:inset 14px 14px 26px var(--panel-dark), inset -14px -14px 26px var(--panel-light);
+    display:flex; align-items:center; justify-content:center;
+  }
+
+  .stick{
+    position:relative; width:46%; height:46%; border-radius:50%;
+    background:radial-gradient(circle at 34% 28%, #454d5c 0%, #262b34 55%, #181c22 100%);
+    box-shadow:10px 10px 20px var(--panel-dark), -8px -8px 18px var(--panel-light),
+      inset 0 -8px 14px rgba(0,0,0,0.45), inset 0 4px 8px rgba(255,255,255,0.05);
+    cursor:grab; touch-action:none; transition:box-shadow .12s ease; outline:none;
+  }
+  .stick:active{ cursor:grabbing; }
+  .stick.snapping{ transition:transform .5s cubic-bezier(.34,1.56,.64,1); }
+  .stick:focus-visible{
+    box-shadow:10px 10px 20px var(--panel-dark), -8px -8px 18px var(--panel-light),
+      inset 0 -8px 14px rgba(0,0,0,0.45), 0 0 0 3px rgba(var(--accent-rgb),0.7);
+  }
+  .stick .rim{
+    position:absolute; inset:8%; border-radius:50%;
+    background:radial-gradient(circle at 40% 30%, rgba(255,255,255,0.10), transparent 60%); pointer-events:none;
+  }
+  .stick .led{
+    position:absolute; left:50%; top:26%; transform:translate(-50%,-50%); width:11%; height:11%; border-radius:50%;
+    background:var(--accent); box-shadow:0 0 10px 3px rgba(var(--accent-rgb),0.75), inset 0 1px 1px rgba(255,255,255,0.5);
+    transition:background .4s ease, box-shadow .4s ease;
+  }
+
+  @media (prefers-reduced-motion: reduce){ .stick.snapping{ transition:transform .05s linear; } }
+
+  .hud{ display:flex; justify-content:center; gap:26px; margin-top:22px; padding-bottom:clamp(28px,5vw,48px); font-size:11px; color:var(--text-muted); letter-spacing:.05em; }
+  .hud b{ color:var(--text); font-weight:500; }
+  .hud .val{ color:var(--accent); transition:color .4s ease; min-width:38px; display:inline-block; }
+
+  @media (max-width:420px){
+    .scheme-panel, .picker-panel{ width:calc(100vw - 40px); right:-4px; }
+  }
+</style>
+</head>
+<body>
+
+  <header>
+    <div class="eyebrow">// INPUT DEVICE <span id="presetName">· Solid</span></div>
+    <div class="scheme-control">
+      <button class="scheme-btn" id="schemeBtn" aria-label="Ubah skema warna" aria-expanded="false">
+        <span class="dot" id="btnDot"></span>
+      </button>
+
+      <div class="scheme-panel glass" id="schemePanel">
+        <div class="tabs">
+          <button class="tab-btn active" id="tabSolidBtn" data-tab="solid">Solid</button>
+          <button class="tab-btn" id="tabGradientBtn" data-tab="gradient">Gradient</button>
+        </div>
+
+        <div class="tab-panel" id="solidTab">
+          <p class="panel-title">Warna Aksen</p>
+          <div class="swatch-grid" id="swatchGrid"></div>
+        </div>
+
+        <div class="tab-panel" id="gradientTab" hidden>
+          <p class="panel-title">Gradient Aksen</p>
+          <div class="gradient-preview" id="gradientPreview"></div>
+          <div class="stops-row" id="stopsRow"></div>
+          <div class="angle-row">
+            <span class="angle-label">Sudut</span>
+            <input type="range" min="0" max="360" value="135" id="angleSlider" class="glass-range">
+            <span id="angleVal">135°</span>
+          </div>
+          <div class="swatch-label">Preset</div>
+          <div class="swatch-grid" id="gradientPresetGrid"></div>
+        </div>
+      </div>
+
+      <div class="picker-panel glass" id="pickerPanel">
+        <div class="picker-header">
+          <button class="back-btn" id="pickerBack" aria-label="Kembali">←</button>
+          <span>Pilih Warna</span>
+        </div>
+        <div class="sv-square" id="svSquare"><div class="sv-thumb" id="svThumb"></div></div>
+        <div class="hue-slider" id="hueSlider"><div class="hue-thumb" id="hueThumb"></div></div>
+        <div class="picker-row">
+          <button class="eyedrop-btn" id="eyedropBtn" title="Eyedropper">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 22l1-4 9.5-9.5"></path><path d="M17.5 2.5a2.12 2.12 0 0 1 3 3L18 8l-3-3z"></path><path d="M9 13l3 3"></path></svg>
+          </button>
+          <div class="swatch-preview" id="pickerPreview"></div>
+          <input type="text" class="glass-input hex-input" id="hexInput" maxlength="7" spellcheck="false">
+        </div>
+        <div class="rgb-row">
+          <div class="rgb-field"><input class="glass-input" type="number" id="rInput" min="0" max="255"><label>R</label></div>
+          <div class="rgb-field"><input class="glass-input" type="number" id="gInput" min="0" max="255"><label>G</label></div>
+          <div class="rgb-field"><input class="glass-input" type="number" id="bInput" min="0" max="255"><label>B</label></div>
+        </div>
+        <button class="apply-btn" id="pickerDoneBtn">Selesai</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="hero">
+    <h1>Neumorphic Joystick</h1>
+    <p>Seret &amp; atur <span class="accent-text">warnanya</span> di pojok kanan atas.</p>
+  </div>
+
+  <div class="stage">
+    <div class="joystick-panel" id="panel">
+      <div class="vents" id="vents"></div>
+      <div class="socket">
+        <div class="stick" id="stick" tabindex="0">
+          <div class="rim"></div>
+          <div class="led" id="led"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="hud">
+    <div>X&nbsp;<b class="val" id="valX">0.00</b></div>
+    <div>Y&nbsp;<b class="val" id="valY">0.00</b></div>
+  </div>
+
+<script>
+const root = document.documentElement;
+
+  /* ================= color math helpers ================= */
+  function clamp(v,min,max){ return Math.min(max,Math.max(min,v)); }
+
+  function hexToRgbArr(hex){
+    const h = hex.replace('#','');
+    const full = h.length===3 ? h.split('').map(c=>c+c).join('') : h;
+    const n = parseInt(full,16);
+    return [(n>>16)&255,(n>>8)&255,n&255];
+  }
+  function rgbArrToHex(rgb){
+    return '#'+rgb.map(v=>clamp(Math.round(v),0,255).toString(16).padStart(2,'0')).join('');
+  }
+  function hexToRgbStr(hex){ return hexToRgbArr(hex).join(','); }
+
+  function hsvToRgb(h,s,v){
+    const c = v*s, x = c*(1-Math.abs((h/60)%2-1)), m = v-c;
+    let r=0,g=0,b=0;
+    if(h<60){r=c;g=x;b=0;} else if(h<120){r=x;g=c;b=0;} else if(h<180){r=0;g=c;b=x;}
+    else if(h<240){r=0;g=x;b=c;} else if(h<300){r=x;g=0;b=c;} else {r=c;g=0;b=x;}
+    return [(r+m)*255,(g+m)*255,(b+m)*255];
+  }
+  function rgbToHsv(r,g,b){
+    r/=255; g/=255; b/=255;
+    const max=Math.max(r,g,b), min=Math.min(r,g,b), d=max-min;
+    let h=0; const s = max===0?0:d/max, v=max;
+    if(d!==0){
+      switch(max){
+        case r: h=((g-b)/d)%6; break;
+        case g: h=(b-r)/d+2; break;
+        default: h=(r-g)/d+4;
+      }
+      h*=60; if(h<0) h+=360;
+    }
+    return [h,s,v];
+  }
+  function lerpColorHex(hexA,hexB,t){
+    const a = hexToRgbArr(hexA), b = hexToRgbArr(hexB);
+    return rgbArrToHex([a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t]);
+  }
+  function sampleGradientAtAngle(angleDeg, stops, rotation){
+    const n = stops.length;
+    if(n===1) return stops[0];
+    const t = (((angleDeg - rotation) % 360) + 360) % 360 / 360;
+    const scaled = t*n;
+    const idx = Math.floor(scaled) % n;
+    const nextIdx = (idx+1) % n;
+    const frac = scaled - Math.floor(scaled);
+    return lerpColorHex(stops[idx], stops[nextIdx], frac);
+  }
+
+  /* ================= scheme state ================= */
+  const solidPresets = [
+    { name:'Crimson', hex:'#ff4d4d' }, { name:'Cyan', hex:'#22e5ff' },
+    { name:'Violet', hex:'#b366ff' }, { name:'Emerald', hex:'#22e5a0' },
+    { name:'Amber', hex:'#ffb020' }, { name:'Azure', hex:'#3d8bff' },
+    { name:'Rose', hex:'#ff5fa8' },
+  ];
+  const gradientPresets = [
+    { name:'Sunset', stops:['#ff6a00','#ff2d75'], angle:135 },
+    { name:'Ocean', stops:['#00c6ff','#0072ff'], angle:120 },
+    { name:'Neon', stops:['#a855f7','#22e5ff','#22e5a0'], angle:100 },
+    { name:'Aurora', stops:['#ff4d4d','#ffb020','#22e5a0'], angle:150 },
+    { name:'Candy', stops:['#ff5fa8','#b366ff'], angle:110 },
+    { name:'Lime', stops:['#d4ff00','#22e5a0'], angle:130 },
+  ];
+
+  let scheme = { type:'solid', solid:'#ff4d4d', gradientStops:['#ff6a00','#ff2d75'], angle:135 };
+
+  const btnDot = document.getElementById('btnDot');
+  const presetNameEl = document.getElementById('presetName');
+  const ledEl = document.getElementById('led');
+
+  function gradientCss(stops, angle){ return `linear-gradient(${angle}deg, ${stops.join(', ')})`; }
+
+  function applyScheme(){
+    let cssBg, firstHex;
+    if(scheme.type === 'solid'){
+      cssBg = scheme.solid; firstHex = scheme.solid;
+      presetNameEl.textContent = '· Solid';
+    } else {
+      cssBg = gradientCss(scheme.gradientStops, scheme.angle);
+      firstHex = scheme.gradientStops[0];
+      presetNameEl.textContent = '· Gradient';
+    }
+    root.style.setProperty('--accent', firstHex);
+    root.style.setProperty('--accent-rgb', hexToRgbStr(firstHex));
+    btnDot.style.background = cssBg;
+    ledEl.style.background = cssBg;
+    ledEl.style.boxShadow = `0 0 12px 3px rgba(${hexToRgbStr(firstHex)},0.75), inset 0 1px 1px rgba(255,255,255,0.5)`;
+    refreshSolidSwatches();
+    refreshGradientUI();
+    updateVentBaseColors();
+  }
+
+  /* ================= solid tab ================= */
+  const swatchGrid = document.getElementById('swatchGrid');
+  function buildSolidSwatches(){
+    swatchGrid.innerHTML = '';
+    solidPresets.forEach(p=>{
+      const el = document.createElement('div');
+      el.className = 'swatch'; el.style.background = p.hex; el.dataset.hex = p.hex; el.title = p.name;
+      el.addEventListener('click', ()=>{ scheme.type='solid'; scheme.solid=p.hex; applyScheme(); });
+      swatchGrid.appendChild(el);
+    });
+    const addEl = document.createElement('div');
+    addEl.className = 'swatch custom-add'; addEl.textContent = '+'; addEl.title = 'Warna kustom';
+    addEl.addEventListener('click', ()=> openPicker(scheme.solid, { mode:'solid' }));
+    swatchGrid.appendChild(addEl);
+  }
+  function refreshSolidSwatches(){
+    document.querySelectorAll('#swatchGrid .swatch[data-hex]').forEach(s=>{
+      s.classList.toggle('active', scheme.type==='solid' && s.dataset.hex.toLowerCase()===scheme.solid.toLowerCase());
+    });
+  }
+
+  /* ================= gradient tab ================= */
+  const gradientPreview = document.getElementById('gradientPreview');
+  const stopsRow = document.getElementById('stopsRow');
+  const angleSlider = document.getElementById('angleSlider');
+  const angleVal = document.getElementById('angleVal');
+  const gradientPresetGrid = document.getElementById('gradientPresetGrid');
+
+  function buildStopsRow(){
+    stopsRow.innerHTML = '';
+    scheme.gradientStops.forEach((hex,i)=>{
+      const chip = document.createElement('div');
+      chip.className = 'stop-chip'; chip.style.background = hex;
+      chip.addEventListener('click', ()=> openPicker(hex, { mode:'gradient', index:i }));
+      if(scheme.gradientStops.length > 2){
+        const rm = document.createElement('div');
+        rm.className = 'remove'; rm.textContent = '×';
+        rm.addEventListener('click', (e)=>{
+          e.stopPropagation();
+          scheme.gradientStops.splice(i,1);
+          scheme.type='gradient'; applyScheme();
+        });
+        chip.appendChild(rm);
+      }
+      stopsRow.appendChild(chip);
+    });
+    if(scheme.gradientStops.length < 4){
+      const add = document.createElement('div');
+      add.className = 'stop-chip add'; add.textContent = '+';
+      add.addEventListener('click', ()=>{
+        const last = scheme.gradientStops[scheme.gradientStops.length-1];
+        scheme.gradientStops.push(last);
+        scheme.type = 'gradient';
+        applyScheme();
+        openPicker(last, { mode:'gradient', index:scheme.gradientStops.length-1 });
+      });
+      stopsRow.appendChild(add);
+    }
+  }
+  function buildGradientPresets(){
+    gradientPresetGrid.innerHTML = '';
+    gradientPresets.forEach(p=>{
+      const el = document.createElement('div');
+      el.className = 'swatch'; el.style.background = gradientCss(p.stops, p.angle); el.title = p.name;
+      el.addEventListener('click', ()=>{
+        scheme.type='gradient'; scheme.gradientStops=[...p.stops]; scheme.angle=p.angle;
+        applyScheme();
+      });
+      gradientPresetGrid.appendChild(el);
+    });
+  }
+  function refreshGradientUI(){
+    gradientPreview.style.background = gradientCss(scheme.gradientStops, scheme.angle);
+    buildStopsRow();
+    angleSlider.value = scheme.angle;
+    angleVal.textContent = Math.round(scheme.angle) + '°';
+  }
+  angleSlider.addEventListener('input', (e)=>{
+    scheme.angle = parseFloat(e.target.value);
+    scheme.type = 'gradient';
+    applyScheme();
+  });
+
+  /* ================= tabs switching ================= */
+  const tabSolidBtn = document.getElementById('tabSolidBtn');
+  const tabGradientBtn = document.getElementById('tabGradientBtn');
+  const solidTab = document.getElementById('solidTab');
+  const gradientTab = document.getElementById('gradientTab');
+  function selectTab(tab){
+    const isSolid = tab==='solid';
+    tabSolidBtn.classList.toggle('active', isSolid);
+    tabGradientBtn.classList.toggle('active', !isSolid);
+    solidTab.hidden = !isSolid;
+    gradientTab.hidden = isSolid;
+  }
+  tabSolidBtn.addEventListener('click', ()=> selectTab('solid'));
+  tabGradientBtn.addEventListener('click', ()=> selectTab('gradient'));
+
+  /* ================= panel open/close ================= */
+  const schemeBtn = document.getElementById('schemeBtn');
+  const schemePanel = document.getElementById('schemePanel');
+  const pickerPanel = document.getElementById('pickerPanel');
+
+  function closeAllPanels(){
+    schemePanel.classList.remove('open');
+    pickerPanel.classList.remove('open');
+    schemeBtn.setAttribute('aria-expanded','false');
+  }
+  schemeBtn.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    const willOpen = !schemePanel.classList.contains('open');
+    closeAllPanels();
+    if(willOpen){ schemePanel.classList.add('open'); schemeBtn.setAttribute('aria-expanded','true'); }
+  });
+  document.addEventListener('click', (e)=>{
+    if(!schemePanel.contains(e.target) && !pickerPanel.contains(e.target) && e.target !== schemeBtn && !schemeBtn.contains(e.target)){
+      closeAllPanels();
+    }
+  });
+
+  /* ================= custom picker ================= */
+  const svSquare = document.getElementById('svSquare');
+  const svThumb = document.getElementById('svThumb');
+  const hueSlider = document.getElementById('hueSlider');
+  const hueThumb = document.getElementById('hueThumb');
+  const hexInput = document.getElementById('hexInput');
+  const rInput = document.getElementById('rInput');
+  const gInput = document.getElementById('gInput');
+  const bInput = document.getElementById('bInput');
+  const pickerPreview = document.getElementById('pickerPreview');
+  const eyedropBtn = document.getElementById('eyedropBtn');
+  const pickerBack = document.getElementById('pickerBack');
+  const pickerDoneBtn = document.getElementById('pickerDoneBtn');
+
+  let pickerTarget = { mode:'solid' };
+  let hsv = { h:0, s:1, v:1 };
+
+  function openPicker(initialHex, target){
+    pickerTarget = target;
+    const [r,g,b] = hexToRgbArr(initialHex);
+    const [h,s,v] = rgbToHsv(r,g,b);
+    hsv = { h, s, v };
+    updatePickerUI();
+    schemePanel.classList.remove('open');
+    pickerPanel.classList.add('open');
+  }
+  pickerBack.addEventListener('click', ()=>{
+    pickerPanel.classList.remove('open');
+    schemePanel.classList.add('open');
+  });
+  pickerDoneBtn.addEventListener('click', ()=>{
+    pickerPanel.classList.remove('open');
+    schemePanel.classList.add('open');
+  });
+
+  function updatePickerUI(){
+    const rgb = hsvToRgb(hsv.h, hsv.s, hsv.v);
+    const hex = rgbArrToHex(rgb);
+    svSquare.style.background =
+      `linear-gradient(to top, #000, transparent), linear-gradient(to right, #fff, hsl(${hsv.h},100%,50%))`;
+    svThumb.style.left = (hsv.s*100) + '%';
+    svThumb.style.top = ((1-hsv.v)*100) + '%';
+    hueThumb.style.left = (hsv.h/360*100) + '%';
+    pickerPreview.style.background = hex;
+    hexInput.value = hex;
+    rInput.value = Math.round(rgb[0]); gInput.value = Math.round(rgb[1]); bInput.value = Math.round(rgb[2]);
+    commitPickerColor(hex);
+  }
+  function commitPickerColor(hex){
+    if(pickerTarget.mode === 'solid'){
+      scheme.type='solid'; scheme.solid=hex;
+    } else {
+      scheme.gradientStops[pickerTarget.index] = hex; scheme.type='gradient';
+    }
+    applyScheme();
+  }
+
+  function svPointer(e){
+    const rect = svSquare.getBoundingClientRect();
+    const x = clamp((e.clientX-rect.left)/rect.width, 0, 1);
+    const y = clamp((e.clientY-rect.top)/rect.height, 0, 1);
+    hsv.s = x; hsv.v = 1-y;
+    updatePickerUI();
+  }
+  let svDragging=false;
+  svSquare.addEventListener('pointerdown', e=>{ svDragging=true; svSquare.setPointerCapture(e.pointerId); svPointer(e); });
+  svSquare.addEventListener('pointermove', e=>{ if(svDragging) svPointer(e); });
+  svSquare.addEventListener('pointerup', ()=> svDragging=false);
+
+  function huePointer(e){
+    const rect = hueSlider.getBoundingClientRect();
+    const x = clamp((e.clientX-rect.left)/rect.width, 0, 1);
+    hsv.h = x*360;
+    updatePickerUI();
+  }
+  let hueDragging=false;
+  hueSlider.addEventListener('pointerdown', e=>{ hueDragging=true; hueSlider.setPointerCapture(e.pointerId); huePointer(e); });
+  hueSlider.addEventListener('pointermove', e=>{ if(hueDragging) huePointer(e); });
+  hueSlider.addEventListener('pointerup', ()=> hueDragging=false);
+
+  hexInput.addEventListener('change', ()=>{
+    let v = hexInput.value.trim();
+    if(!v.startsWith('#')) v = '#'+v;
+    if(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(v)){
+      const [r,g,b] = hexToRgbArr(v);
+      hsv = { ...rgbToHsvObj(r,g,b) };
+      updatePickerUI();
+    }
+  });
+  function rgbToHsvObj(r,g,b){ const [h,s,v]=rgbToHsv(r,g,b); return {h,s,v}; }
+
+  [rInput,gInput,bInput].forEach(inp=>{
+    inp.addEventListener('change', ()=>{
+      const r = clamp(parseInt(rInput.value)||0,0,255);
+      const g = clamp(parseInt(gInput.value)||0,0,255);
+      const b = clamp(parseInt(bInput.value)||0,0,255);
+      hsv = rgbToHsvObj(r,g,b);
+      updatePickerUI();
+    });
+  });
+
+  if('EyeDropper' in window){
+    eyedropBtn.addEventListener('click', async ()=>{
+      try{
+        const res = await new window.EyeDropper().open();
+        const [r,g,b] = hexToRgbArr(res.sRGBHex);
+        hsv = rgbToHsvObj(r,g,b);
+        updatePickerUI();
+      }catch(err){ /* user cancelled */ }
+    });
+  } else {
+    eyedropBtn.disabled = true;
+    eyedropBtn.title = 'Eyedropper tidak didukung browser ini';
+  }
+
+  /* ================= vent ring ================= */
+  const ventsContainer = document.getElementById('vents');
+  const ventCount = 20;
+  const ventRadius = 44;
+  const vents = [];
+  for(let i=0;i<ventCount;i++){
+    const angle = (i/ventCount) * 360;
+    const rad = angle * Math.PI/180;
+    const x = 50 + ventRadius*Math.cos(rad);
+    const y = 50 + ventRadius*Math.sin(rad);
+    const hole = document.createElement('div');
+    hole.className = 'vent';
+    hole.style.left = `calc(${x}% - 4.5px)`;
+    hole.style.top = `calc(${y}% - 4.5px)`;
+    const core = document.createElement('div');
+    core.className = 'vent-core';
+    hole.appendChild(core);
+    ventsContainer.appendChild(hole);
+    vents.push({ core, angle });
+  }
+  function updateVentBaseColors(){
+    vents.forEach(v=>{
+      const hex = scheme.type==='solid' ? scheme.solid : sampleGradientAtAngle(v.angle, scheme.gradientStops, scheme.angle);
+      v.core.style.background = `rgb(${hexToRgbStr(hex)})`;
+      v.rgb = hexToRgbArr(hex);
+    });
+    updateVentLighting(0,0);
+  }
+  function updateVentLighting(dirDeg, magnitude){
+    vents.forEach(v=>{
+      let diff = Math.abs(((v.angle - dirDeg + 540) % 360) - 180);
+      const influence = Math.max(0, Math.cos(diff*Math.PI/180));
+      const brightness = clamp(0.12 + magnitude*influence*0.9, 0, 1);
+      v.core.style.opacity = brightness;
+      v.core.style.boxShadow = `0 0 ${4+brightness*10}px ${brightness*3}px rgba(${v.rgb.join(',')},${brightness*0.9})`;
+    });
+  }
+
+  /* ================= joystick drag ================= */
+  const stick = document.getElementById('stick');
+  const socket = stick.parentElement;
+  const valX = document.getElementById('valX');
+  const valY = document.getElementById('valY');
+  let dragging=false, originX=0, originY=0, maxR=0;
+
+  function setPos(dx,dy){
+    stick.style.transform = `translate(${dx}px, ${dy}px)`;
+    const nx = maxR ? dx/maxR : 0, ny = maxR ? dy/maxR : 0;
+    valX.textContent = nx.toFixed(2); valY.textContent = ny.toFixed(2);
+    const dist = Math.hypot(dx,dy);
+    const magnitude = maxR ? clamp(dist/maxR,0,1) : 0;
+    const dirDeg = magnitude > 0.02 ? (Math.atan2(dy,dx)*180/Math.PI+360)%360 : 0;
+    updateVentLighting(dirDeg, magnitude);
+  }
+  function computeBounds(){
+    const socketRect = socket.getBoundingClientRect();
+    const stickRect = stick.getBoundingClientRect();
+    maxR = (socketRect.width - stickRect.width) / 2;
+  }
+  function pointerDown(e){
+    stick.classList.remove('snapping'); stick.focus(); dragging=true; computeBounds();
+    const rect = socket.getBoundingClientRect();
+    originX = rect.left+rect.width/2; originY = rect.top+rect.height/2;
+    stick.setPointerCapture(e.pointerId);
+  }
+  function pointerMove(e){
+    if(!dragging) return;
+    let dx = e.clientX-originX, dy = e.clientY-originY;
+    const dist = Math.hypot(dx,dy);
+    if(dist > maxR && maxR > 0){ const s = maxR/dist; dx*=s; dy*=s; }
+    setPos(dx,dy);
+  }
+  function pointerUp(){
+    if(!dragging) return;
+    dragging=false; stick.classList.add('snapping'); setPos(0,0);
+  }
+  stick.addEventListener('pointerdown', pointerDown);
+  stick.addEventListener('pointermove', pointerMove);
+  stick.addEventListener('pointerup', pointerUp);
+  stick.addEventListener('pointercancel', pointerUp);
+
+  stick.addEventListener('keydown', (e)=>{
+    computeBounds();
+    const m = stick.style.transform.match(/-?\d+(\.\d+)?/g);
+    let dx = m ? parseFloat(m[0]) : 0, dy = m ? parseFloat(m[1]) : 0;
+    const step = 12;
+    if(e.key==='ArrowLeft') dx-=step; else if(e.key==='ArrowRight') dx+=step;
+    else if(e.key==='ArrowUp') dy-=step; else if(e.key==='ArrowDown') dy+=step; else return;
+    e.preventDefault();
+    const dist = Math.hypot(dx,dy);
+    if(dist>maxR && maxR>0){ const s=maxR/dist; dx*=s; dy*=s; }
+    stick.classList.add('snapping'); setPos(dx,dy);
+  });
+  stick.addEventListener('blur', ()=>{ stick.classList.add('snapping'); setPos(0,0); });
+  window.addEventListener('resize', computeBounds);
+
+  /* ================= init ================= */
+  buildSolidSwatches();
+  buildGradientPresets();
+  computeBounds();
+  applyScheme();
+</script>
+</body>
+</html>
